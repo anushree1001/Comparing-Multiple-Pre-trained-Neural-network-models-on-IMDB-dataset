@@ -1,0 +1,215 @@
+---
+title: "Comparing Multiple models on IMDB dataset"
+author: "Anushree"
+date: "2/21/2020"
+output: rmarkdown::github_document
+always_allow_html: true
+---
+
+## 1. Reading all pre-trained model files and test files
+
+a. First we load model files
+```{r message=FALSE, warning=FALSE ,echo = TRUE}
+library(tidyverse)
+library(keras)
+library(reticulate)
+library(plyr)
+library(kableExtra)
+
+#loading pre-trained models
+simplernn_model=load_model_hdf5("simplernn_model.h5")
+lstm_model=load_model_hdf5("lstm_model.h5")
+gru_model=load_model_hdf5("gru_model.h5")
+bilstm_model=load_model_hdf5("bilstm_model.h5")
+bigru_model=load_model_hdf5("bigru_model.h5")
+onedconv_model=load_model_hdf5("onedconv_model.h5")
+```
+
+b. Next we load history files
+```{r message=FALSE, warning=FALSE ,echo = TRUE}
+
+#loading pre-trained models history
+simplernn_history=readRDS("simplernn_history.rds")
+lstm_history=readRDS("lstm_history.rds")
+gru_history=readRDS("gru_history.rds")
+bilstm_history=readRDS("bilstm_history.rds")
+bigru_history=readRDS("bigru_history.rds")
+onedconv_history=readRDS("onedconv_history.rds")
+
+```
+
+
+c. Next we load our test data set files
+```{r message=FALSE, warning=FALSE ,echo = TRUE}
+x_test=readRDS("x_test.rds")
+y_test=readRDS("y_test.rds")
+
+```
+
+## 2.Displaying Xtest and Ytest Statistics 
+a. Number of reviews in test set:
+```{r}
+nrow(x_test)
+```
+
+b. Number of positive reviews in test set:
+```{r}
+length(y_test[y_test==1])
+```
+
+c. Number of negative reviews in test set:
+```{r}
+length(y_test[y_test==0])
+```
+
+## 3. For each model:
+
+a. Summary of all models 
+
+# RNN Summary
+```{r}
+
+summary(simplernn_model)
+```
+
+# Lstm Summary
+```{r}
+summary(lstm_model)
+
+```
+
+# GRU Summary
+```{r}
+summary(gru_model)
+```
+
+# Bidirectional LSTM Summary
+```{r}
+
+summary(bilstm_model)
+```
+
+# Bidirectional GRU  Summary
+```{r}
+summary(bigru_model)
+```
+
+# 1D convnet Summary
+```{r}
+summary(onedconv_model)
+```
+
+
+b. Plotting History of all models 
+# RNN history
+```{r}
+
+
+plot(simplernn_history)
+```
+
+# Lstm history
+```{r}
+plot(lstm_history)
+```
+
+# GRU history
+```{r}
+plot(gru_history)
+```
+
+
+# Bidirectional LSTM history
+```{r}
+plot(bilstm_history)
+```
+
+
+# Bidirectional GRU  history
+```{r}
+plot(bigru_history)
+```
+
+# 1D convnet history
+```{r}
+plot(onedconv_history)
+```
+
+c. Evaluating the performance of the model using the test set
+
+# RNN Evaluation
+```{r}
+simplernn_model %>% evaluate(x_test, y_test)
+```
+
+# Lstm Evaluation
+```{r}
+lstm_model %>% evaluate(x_test, y_test)
+```
+
+# GRU Evaluation
+```{r}
+gru_model %>% evaluate(x_test, y_test)
+```
+
+
+# Bidirectional LSTM Evaluation
+```{r}
+bilstm_model %>% evaluate(x_test, y_test)
+```
+
+# Bidirectional GRU  Evaluation
+```{r}
+bigru_model %>% evaluate(x_test, y_test)
+```
+
+
+# 1D convnet Evaluation
+```{r}
+onedconv_model %>% evaluate(x_test, y_test)
+```
+
+## Summary of performance of different models
+```{r}
+
+getMetrics <- function(model){
+  res <- model %>% evaluate(x_test, y_test)
+  acc <- res$acc
+  class <- model %>% predict_classes(x_test)
+  matrix <- table(y_test, class)
+  n_tp <- matrix[2,2]
+  n_tn <- matrix[1,1]
+  n_fp <- matrix[1,2]
+  n_fn <- matrix[2,1]
+  metrics <- data.frame(acc,n_tp,n_tn,n_fp,n_fn)
+  return (metrics)
+}
+
+
+models <- list(simplernn_model,lstm_model,gru_model,bilstm_model,bigru_model,onedconv_model)
+modelname <- c("Simple RNN",
+            "LSTM",
+            "GRU",
+            "Bidirectional LSTM",
+            "Bidirectional GRU",
+            "1D-Convent"
+          
+)
+
+metrics <- ldply(models,getMetrics)
+metrics_table <- cbind(model_name = modelname, metrics)
+
+
+kable(metrics_table) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+
+## Results:
+
+1. From the above table, it can be seen that the accuracy of the two Bidirectional models is the best with the accuracy of Bidirectional LSTM being number one and bidirectional gru being number two. Bidirectional Gru is followed by Gru, LSTM and RNN which have almost the same accuracy. 1d-Convent performs the worst in terms of accuracy. So on the basis of accuracy alone Bidirectional LSTM would be the best model for predicting reviews for the IMDB datase.t
+
+2. It can also be seen from the table that LSTM has the highest number of true-positives and lowest number of false negatives. That means that its actual-positives(True positive+false negative) are just more by 41. i.e the model just didn't correctly identify 41 positive reviews as positive which makes it the most sensitive model. As compared to other models which have a greater variation in their actual positives and true positives.
+The greatest variation in false negative and true positive is in the simple RNN model making it the least sensitive model.
+
+3. It can also be observed that simple rnn has the least number of false positives which is 76. Which means it has the last number of incorrectly labelled positive reviews, making it the most precise. While 1d-convenent has the most number of incorrectly identified positive reviews which is 1157.1D convent has very little variance in correctly idenentified positive reviews and reviews which were negative but identified as positive, making it the least precise.
